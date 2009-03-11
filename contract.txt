@@ -1,0 +1,80 @@
+# pyca - Python C extension Assistant
+#
+# Contract
+#
+$ mkdir py-helloworld
+$ cd py-helloworld
+# initialize project
+$ pyca init helloworld # <top module name>
+# make a function
+$ pyca mk func 'helloworld.echo(something)'
+> docs/src/helloworld.rst:
+  .. function:: echo(something)
+
+> src/helloworld.h:
+  /**
+   * 
+   * @param O something
+   */
+  PyObject *helloworld_echo(PyObject *args, PyObject *kwargs);
+
+> src/helloworld.c:
+  PyObject *helloworld_echo(PyObject *args, PyObject *kwargs) {
+    PyObject *something = NULL;
+    static char *kwlist[] = {"something", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O:echo", kwlist, &something)) {
+      return NULL;
+    }
+    /* TODO: implementation */
+    PyErr_SetString(PyExc_NotImplementedError, "helloworld.echo");
+    return NULL;
+  }
+
+$ pyca mk class helloworld.Hello
+> docs/src/helloworld.rst
+  .. class:: Hello
+  
+> src/helloworld_Hello.h:
+  #ifndef _HELLOWORLD_HELLO_H_
+  #define _HELLOWORLD_HELLO_H_
+  struct...
+  extern PyTypeObject *helloworld_HelloType;
+  ...
+  PyObject *helloworld_Hello__register(PyObject *module);
+  #endif
+
+> src/helloworld_Hello.c:
+  methods { ... }
+  PyTypeObject *helloworld_HelloType = struct...
+  PyObject *helloworld_Hello__register(PyObject *module) { ... }
+
+> src/helloworld.c:
+  #include "helloworld_Hello.h"
+...
+  if (!helloworld_Hello__register(module)) {
+    return NULL;
+  }
+
+$ pyca mk meth 'helloworld.Hello.echo(z message, i times=5)'
+> docs/source/helloworld.Hello.rst:
+    .. method:: echo(message, times=5)
+
+> src/helloworld_Hello.h:
+  /**
+   * @param z message
+   * @param i times = 5
+   */
+  PyObject *helloworld_Hello_echo(PyObject *args, PyObject *kwargs);
+ 
+> src/helloworld_Hello.c:
+  PyObject *helloworld_Hello_echo(PyObject *args, PyObject *kwargs) {
+    const char *message = NULL;
+    int times = 5;
+    static char *kwlist[] = {"message", "times", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "z|i:echo", kwlist, &message, &times)) {
+      return NULL;
+    }
+    /* TODO: implementation */
+    PyErr_SetString(PyExc_NotImplementedError, "helloworld.Hello.echo");
+    return NULL;
+  }
