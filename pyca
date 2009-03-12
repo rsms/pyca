@@ -265,12 +265,12 @@ def main_mk_smeth(args):
 def main_mk(args):
   if len(args) == 0:
     error('the mk command requires type to be specified '\
-      '(one of: func, class, meth)')
+      '(one of: func, meth, smeth)')
   
   try:
     cmd = eval('main_mk_'+args[0])
   except NameError:
-    error('%r is not a type. Try one of: func, class, meth' % args[0])
+    error('%r is not a type. Try one of: func, meth, smeth' % args[0])
   
   if len(args) < 2:
     error('the mk command with type %r requires one or more specifiers'
