@@ -1,4 +1,4 @@
-PyCA --- Python C extension Assistant
+PyCA – Python C extension Assistant
 ====================================
 
 Generates Python C API code in order to aid in C extension development.
