@@ -1,0 +1,300 @@
+#!/usr/bin/env python
+# encoding: utf-8
+'''Python C extension Assistant
+
+Generates Python C API interface code to aid in C extension development.
+
+Copyright (c) 2009 Rasmus Andersson
+Licensed under the MIT license.
+'''
+import sys, os, re
+opts = None
+optp = None
+outf = sys.stdout
+
+PTYPE_TO_STORAGE = {
+  # p: ((type, default)[, length_type])
+  's' : [['const char *','NULL']],
+  's#': [['const char *','NULL'], 'int '],
+  's*': [['Py_buffer *','NULL']],
+  'z' : [['const char *','NULL']],
+  'z#': [['const char *','NULL'], 'int '],
+  'z*': [['Py_buffer *','NULL']],
+  'u' : [['Py_UNICODE *','NULL']],
+  'u#': [['Py_UNICODE *','NULL'], 'int '],
+  'b' : [['unsigned char ',"'\0'"]],
+  'B' : [['unsigned char ',"'\0'"]],
+  'h' : [['short ','0']],
+  'H' : [['unsigned short ','0U']],
+  'i' : [['int ','0']],
+  'I' : [['unsigned int ','0']],
+  'l' : [['long ','0L']],
+  'k' : [['unsigned long ','0UL']],
+  'L' : [['Py_LONG_LONG ','0LL']],
+  'K' : [['unsigned PY_LONG_LONG ','0ULL']],
+  'n' : [['Py_ssize_t ','0']],
+  'c' : [['char ',"'\0'"]],
+  'f' : [['float ','0.0f']],
+  'd' : [['double ','0.0']],
+  'D' : [['Py_complex ','{0.0, 0.0}']],
+  'O' : [['PyObject *','NULL']],
+  'S' : [['PyStringObject *', 'NULL']],
+  'U' : [['PyUnicodeObject *', 'NULL']],
+  't#': [['char *', 'NULL'], 'int '],
+  'w' : [['char *','NULL']],
+  'w#': [['char *', 'NULL'], 'Py_ssize_t '],
+  'w*': [['Py_buffer *', 'NULL']]
+}
+
+def error(msg):
+  optp.error(msg)
+
+
+def parse_func(spec, method=None):
+  spec = spec.strip()
+  m = dict(
+    modules=[],
+    cls='',
+    name='',
+    args=[],
+    sig='',
+    path=[],
+    sigorig=spec,
+  )
+  argsp = spec.find('(')
+  if argsp != -1:
+    path = spec[:argsp].split('.')
+    args = spec[argsp+1:].rstrip(')')
+  else:
+    path = spec.split('.')
+    args = ''
+  
+  if (method and len(path) < 3) or (not method and len(path) < 2):
+    error('incomplete path -- expected something like: %s' % ('mymodule.'+spec))
+  
+  if method:
+    m['modules'] = path[:-2]
+    m['cls'] = path[-2]
+  else:
+    m['modules'] = path[:-1]
+  m['name'] = path[-1]
+  
+  av = []
+  for part in [s for s in args.split(',') if s]:
+    arg = {}
+    eqp = part.find('=')
+    if eqp != -1:
+      name = part[:eqp].rstrip()
+      arg['default'] = part[eqp+1:].lstrip()
+    else:
+      name = part
+    namev = [s for s in name.split(' ') if s]
+    if len(namev) > 1:
+      arg['type'] = namev[0]
+      name = namev[1]
+    arg['name'] = name
+    av.append(arg)
+  
+  m['args'] = av
+  
+  argsig = []
+  for arg in m['args']:
+    if 'default' in arg:
+      argsig.append('%s=%s' % (arg['name'], arg['default']))
+    else:
+      argsig.append(arg['name'])
+  argsig = ', '.join(argsig)
+  m['argsig'] = argsig
+  
+  sigcls = ''
+  if method:
+    sigcls = m['cls'] + '.'
+  m['sig'] = '%s.%s(%s)' % (
+    '.'.join(m['modules']),
+    sigcls + m['name'],
+    argsig
+  )
+  
+  m['pathv'] = path
+  m['path'] = '.'.join(path)
+  m['path_'] = '_'.join(path)
+  m['parent_path'] = '.'.join(path[:-1])
+  m['parent_path_'] = '_'.join(path[:-1])
+  
+  return m
+
+
+def format_func_doc(spec, method=False):
+  content = ''
+  if not method:
+    content = '.. function:: %(name)s(%(argsig)s)\n' % spec
+  elif method == 'static':
+    content = '  .. staticmethod:: %(name)s(%(argsig)s)\n' % spec
+  else:
+    content = '  .. method:: %(name)s(%(argsig)s)\n' % spec
+  return ('docs/source/%(path)s.rst' % spec, content)
+
+
+def format_func_h(spec, method=False):
+  params = []
+  selfdef = ''
+  
+  if method and method != 'static':
+    selfdef = 'PyObject *self, '
+  
+  for arg in spec['args']:
+    t = arg.get('type', 'O')
+    try:
+      t = PTYPE_TO_STORAGE[t][0][0]
+    except KeyError:
+      error('unsupported storage type %r' % t)
+    if 'default' in arg:
+      params.append('%s%s = %s' % (t, arg['name'], arg['default']))
+    else:
+      params.append(t + arg['name'])
+  
+  params = '\n * '.join(['@param '+s for s in params])
+  spec.update(dict(
+    params=params,
+    selfdef=selfdef
+  ))
+  
+  return ('src/%(parent_path_)s.h' % spec, '''
+/**
+ * %(params)s
+ */
+PyObject *%(path_)s(%(selfdef)sPyObject *args, PyObject *kwargs);
+''' % spec)
+
+
+def format_func_c(spec, method=False):
+  storage = []
+  cstspec = [] # "Os#|z"
+  cstrefs = [] # &arg1, &arg2, &arg2_length, &arg3
+  kwlist  = [] # "arg1", "arg2", "arg3"
+  added_optional_divider = False
+  selfdef = ''
+  
+  if method and method != 'static':
+    selfdef = 'PyObject *self, '
+  
+  for arg in spec['args']:
+    t = arg.get('type', 'O')
+    try:
+      cstv = PTYPE_TO_STORAGE[t]
+    except KeyError:
+      error('unsupported storage type %r' % t)
+    
+    default = None
+    for i,cst in enumerate(cstv):
+      if i == 0:
+        default = arg.get('default', cst[1])
+        cstname = arg['name']
+        cst = cst[0]
+      else:
+        default = len(eval(default))
+        cstname = arg['name'] + '_length'
+      storage.append('  %s%s = %s;' % (cst, cstname, default))
+      cstrefs.append(cstname)
+    
+    if not added_optional_divider and 'default' in arg:
+      cstspec.append('|')
+      added_optional_divider = True
+    elif added_optional_divider and not 'default' in arg:
+      error('%s: Missing default value for keyword argument %r appearing after '\
+        'first optional argument' % (spec['sigorig'], arg['name']))
+    
+    cstspec.append(t)
+    kwlist.append(arg['name'])
+  
+  spec.update(dict(
+    storage='\n'.join(storage),
+    cstspec=''.join(cstspec),
+    cstrefs=', '.join(['&'+s for s in cstrefs]),
+    kwlist=', '.join(['"%s"' % s for s in kwlist]),
+    selfdef=selfdef
+  ))
+  
+  return ('src/%(parent_path_)s.c' % spec, '''
+/**
+ * %(sigorig)s
+ */
+PyObject *%(path_)s(%(selfdef)sPyObject *args, PyObject *kwargs) {
+%(storage)s
+  static char *kwlist[] = {%(kwlist)s, NULL};
+  
+  /* Parse arguments */
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "%(cstspec)s:%(name)s", kwlist,
+    %(cstrefs)s))
+  {
+    return NULL;
+  }
+  
+  /* TODO: implementation */
+  PyErr_SetString(PyExc_NotImplementedError, "helloworld.echo");
+  return NULL;
+}
+''' % spec)
+
+
+
+def main_mk_func(args, method=False):
+  files = []
+  
+  for spec in args:
+    spec = parse_func(spec, method=method)
+    files.append(format_func_doc(spec, method=method))
+    files.append(format_func_h(spec, method=method))
+    files.append(format_func_c(spec, method=method))
+  
+  for name,content in files:
+    outf.write('> %s:\n' % name)
+    outf.write('  ')
+    outf.write(content.strip('\n').replace('\n', '\n  '))
+    outf.write('\n\n')
+
+
+def main_mk_meth(args):
+  return main_mk_func(args, 'instance')
+
+
+def main_mk_smeth(args):
+  return main_mk_func(args, 'static')
+
+
+def main_mk(args):
+  if len(args) == 0:
+    error('the mk command requires type to be specified '\
+      '(one of: func, class, meth)')
+  
+  try:
+    cmd = eval('main_mk_'+args[0])
+  except NameError:
+    error('%r is not a type. Try one of: func, class, meth' % args[0])
+  
+  if len(args) < 2:
+    error('the mk command with type %r requires one or more specifiers'
+      % args[0])
+  
+  return cmd(args[1:])
+
+
+def main():
+  from optparse import OptionParser
+  global opts, optp
+  optp = OptionParser(usage="usage: %prog [options] COMMAND [ARGS]")
+  opts, args = optp.parse_args()
+  
+  if len(args) == 0:
+    args = ['mk','func','helloworld.echo(z message, z# suffix = ".", i times=5)'] # XXX DEV
+    #error('no command specified')
+  
+  try:
+    cmd = eval('main_'+args[0])
+  except NameError:
+    error('%r is not a command' % args[0])
+  
+  cmd(args[1:])
+
+if __name__ == "__main__":
+  main()
