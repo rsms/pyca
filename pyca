@@ -286,8 +286,8 @@ def main():
   opts, args = optp.parse_args()
   
   if len(args) == 0:
-    args = ['mk','func','helloworld.echo(z message, z# suffix = ".", i times=5)'] # XXX DEV
-    #error('no command specified')
+    #args = ['mk','func','helloworld.echo(z message, z# suffix = ".", i times=5)'] # test
+    error('no command specified')
   
   try:
     cmd = eval('main_'+args[0])
