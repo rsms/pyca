@@ -22,6 +22,7 @@ The ``mk`` command generates code for functions (``mk func``), methods (``mk met
 
 ::
   
+  #!/bin/sh
   $ ./pyca mk meth 'mymod.SomeClass.echo(s msg, i times=3, s# prefix = "")'
   > docs/source/mymod.SomeClass.echo.rst:
       .. method:: echo(msg, times=3, prefix="")
