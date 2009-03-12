@@ -12,13 +12,16 @@ Commands
 mk
 ^^^^^^
 
-usage: pyca mk func|meth|smeth SIGNATURE...
+::
 
-The ``mk`` command generates code for functions (``mk func``), methods (``mk meth``) and static methods  (``mk smeth``). A ``SIGNATURE`` looks like a regular Python *def* with the addition of *types*. The symbol used to express type are the same used for ``PyArg_Parse``. See http://docs.python.org/c-api/arg.html for a detailed overview.
+  usage: pyca mk func|meth|smeth SIGNATURE...
+
+The *mk* command generates code for functions (*mk func*), methods (*mk meth*) and static methods  (*mk smeth*). A *SIGNATURE* looks like a regular Python *def* with the addition of *types*. The symbol used to express type are the same used for *PyArg_Parse*. See http://docs.python.org/c-api/arg.html for a detailed overview.
 
 **Example:**
+
+::
   
-  #!/bin/sh
   $ ./pyca mk meth 'mymod.SomeClass.echo(s msg, i times=3, s# prefix = "")'
   > docs/source/mymod.SomeClass.echo.rst:
       .. method:: echo(msg, times=3, prefix="")
