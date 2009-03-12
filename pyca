@@ -153,7 +153,10 @@ def format_func_h(spec, method=False):
     else:
       params.append(t + arg['name'])
   
-  params = '\n * '.join(['@param '+s for s in params])
+  if params:
+    params = '\n * '.join(['@param '+s for s in params])
+  else:
+    params = '(no parameters)'
   spec.update(dict(
     params=params,
     selfdef=selfdef
@@ -215,14 +218,12 @@ def format_func_c(spec, method=False):
     selfdef=selfdef
   ))
   
-  return ('src/%(parent_path_)s.c' % spec, '''
-/**
- * %(sigorig)s
- */
-PyObject *%(path_)s(%(selfdef)sPyObject *args, PyObject *kwargs) {
+  args_body = ''
+  if kwlist:
+    args_body = '''
 %(storage)s
   static char *kwlist[] = {%(kwlist)s, NULL};
-  
+
   /* Parse arguments */
   if (!PyArg_ParseTupleAndKeywords(args, kwargs, "%(cstspec)s:%(name)s", kwlist,
     %(cstrefs)s))
@@ -230,7 +231,15 @@ PyObject *%(path_)s(%(selfdef)sPyObject *args, PyObject *kwargs) {
     return NULL;
   }
   
-  /* TODO: implementation */
+''' % spec
+    args_body = args_body.strip('\n')+'\n'
+  spec['args_body'] = args_body
+  return ('src/%(parent_path_)s.c' % spec, '''
+/**
+ * %(sigorig)s
+ */
+PyObject *%(path_)s(%(selfdef)sPyObject *args, PyObject *kwargs) {
+%(args_body)s  /* TODO: implementation */
   PyErr_SetString(PyExc_NotImplementedError, "%(path)s");
   return NULL;
 }
@@ -286,8 +295,9 @@ def main():
   opts, args = optp.parse_args()
   
   if len(args) == 0:
+    args = ['mk','func','helloworld.echo()'] # test
     #args = ['mk','func','helloworld.echo(z message, z# suffix = ".", i times=5)'] # test
-    error('no command specified')
+    #error('no command specified')
   
   try:
     cmd = eval('main_'+args[0])
