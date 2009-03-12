@@ -10,8 +10,4 @@ Commands
 --------
 
 test
-
-mk
-^^^^^^
-
 test2
