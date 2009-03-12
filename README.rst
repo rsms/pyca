@@ -53,6 +53,6 @@ The ``mk`` command generates code for functions (``mk func``), methods (``mk met
       }
     
       /* TODO: implementation */
-      PyErr_SetString(PyExc_NotImplementedError, "helloworld.echo");
+      PyErr_SetString(PyExc_NotImplementedError, "mymod.SomeClass.echo");
       return NULL;
     }

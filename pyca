@@ -231,7 +231,7 @@ PyObject *%(path_)s(%(selfdef)sPyObject *args, PyObject *kwargs) {
   }
   
   /* TODO: implementation */
-  PyErr_SetString(PyExc_NotImplementedError, "helloworld.echo");
+  PyErr_SetString(PyExc_NotImplementedError, "%(path)s");
   return NULL;
 }
 ''' % spec)
