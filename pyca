@@ -185,8 +185,22 @@ def parse_cmd_opts(cmdmain, args):
   return opts, args
 
 
-def parse_cmd_doc(cmdmain):
-  return cmdmain.__doc__.strip().replace('\n  ','\n')
+def parse_cmd_doc(cmdmain, brief=False):
+  doc = cmdmain.__doc__.strip()
+  if not brief:
+    return doc.replace('\n  ', '\n')
+  s = []
+  prev_blank = False
+  for line in doc.split('\n'):
+    if not line.strip():
+      if prev_blank:
+        break
+      prev_blank = True
+    elif prev_blank:
+      if line.startswith('  '):
+        line = line[2:]
+      s.append(line)
+  return '\n'.join(s)
 
 
 def init_cmd(cmdmain):
@@ -469,12 +483,6 @@ def main_show(args):
     eval('main_show_'+typ)([sig])
 
 p = init_cmd(main_show)
-p.add_option("-f", "--func", dest="type", action='store_const', const='func',
-  help="The signature is a function (default).")
-p.add_option("-m", "--meth", dest="type", action='store_const', const='meth',
-  help="The signature is a method.")
-p.add_option("-s", "--smeth", dest="type", action='store_const', const='smeth',
-  help="The signature is a static method.")
 
 
 def main_init(args):
@@ -607,13 +615,7 @@ def main():
   usage = '%prog [options] COMMAND [ARGS]\n\nCommands:\n'
   for cmdname in sorted(commands):
     cmdmain = commands[cmdname]
-    doc = cmdmain.__doc__
-    if doc:
-      doc = str(doc).strip()
-      if '\n' in doc:
-        doc = doc[:doc.index('\n')]
-    else:
-      doc = ''
+    doc = parse_cmd_doc(cmdmain, brief=True)
     usage += '  %-10s  %s\n' % (cmdname, str(doc).strip())
   usage = usage.rstrip()
   

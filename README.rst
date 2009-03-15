@@ -9,20 +9,145 @@ Licensed under MIT.
 Commands
 --------
 
-mk
+**General usage:**
+
+::
+
+  Usage: pyca [options] COMMAND [ARGS]
+
+  Commands:
+    help        Display help about a certain command or pyca itself.
+    init        Create and initialize a new project.
+    show        Generate and display Python C code.
+
+  Options:
+    --version    show program's version number and exit
+    -h, --help   show this help message and exit
+    -q, --quiet  Don't print status messages to stdout
+
+
+init
 ^^^^^^
 
 ::
 
-  usage: pyca mk func|meth|smeth SIGNATURE...
+  Usage: pyca init [options] <name> [<path>]
 
-The ``mk`` command generates code for functions (``mk func``), methods (``mk meth``) and static methods  (``mk smeth``). A ``SIGNATURE`` looks like a regular Python *def* with the addition of *types*. The symbol used to express type are the same used for ``PyArg_Parse``. See http://docs.python.org/c-api/arg.html for a detailed overview.
+  Create and initialize a new project.
 
-**Example:**
+  If <path> is not specified it defaults to './' + <name>
+
+  Options:
+    -h, --help            show this help message and exit
+    --dry-run             Simulate but don't actually do anything.
+    -t <title>, --title=<title>
+                          Human-readable title of project. Defaults to <name>.
+    -a <author>, --author=<author>
+                          Author of the project. If not set, author will be
+                          guessed.
+    -u <url>, --url=<url>
+                          URL pointing to more information.
+    -y <year>, --year=<year>
+                          Copyright year. Defaults to 2009
+    -l <license>, --license=<license>
+                          Software license. Defaults to 'mit' (for a list of
+                          available licenses, see contents of directory
+                          <pycadir>/skeleton/licenses)
+
+
+show
+^^^^^^
+
+::
+
+  Usage: pyca show <signature>
+         pyca show <type> <signature> [<type> <signature> ...]
+
+  Generate and display Python C code.
+
+  Examples:
+
+    Show a function:
+      pyca show 'mymod.myfunc(i size, s message = "hello")'
+
+    Show a method and a function:
+      pyca show meth 'mymod.MyClass.mymeth(i size, s message = "hello")'\
+                func 'mymod.myfunc(i size, s message = "hello")'
+  
+    Show a static method:
+      pyca show smeth 'mymod.MyClass.mymeth(i size, s message = "hello")'
+
+  Type hinting is (optionally) performed by adding a PyArg_Parse symbol in front
+  of arguments.
+
+  Options:
+    -h, --help  show this help message and exit
+
+
+
+Examples
+-----------------
+
+Creating a new project
+^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+  $ ./pyca init fluffy_hamster
+  Creating new project 'fluffy_hamster' in '/Users/rasmus/src/pyca/fluffy_hamster'
+    PROJECT_AUTHOR         => 'Rasmus Andersson <rasmus@hidden.email>'
+    PROJECT_AUTHOR_EMAIL   => 'rasmus@hidden.email'
+    PROJECT_AUTHOR_NAME    => 'Rasmus Andersson'
+    PROJECT_MODULE         => 'fluffy_hamster'
+    PROJECT_MODULE_UPPER   => 'FLUFFY_HAMSTER'
+    PROJECT_TITLE          => 'fluffy_hamster'
+    PROJECT_URL            => ''
+    PROJECT_YEAR           => '2009'
+  dir     fluffy_hamster
+  sub     fluffy_hamster/.gitignore
+  sub     fluffy_hamster/CHANGELOG.rst
+  dir     fluffy_hamster/docs
+  dir     fluffy_hamster/docs/source
+  dir     fluffy_hamster/docs/source/_static
+  sub     fluffy_hamster/docs/source/_static/info.png
+  sub     fluffy_hamster/docs/source/_static/jump.png
+  sub     fluffy_hamster/docs/source/_static/screen.css
+  dir     fluffy_hamster/docs/source/_templates
+  sub 2   fluffy_hamster/docs/source/_templates/layout.html
+  sub 4   fluffy_hamster/docs/source/conf.py
+  sub 1   fluffy_hamster/docs/source/index.rst
+  dir     fluffy_hamster/docs/source/library
+  sub 1   fluffy_hamster/docs/source/library/index.rst
+  sub 3   fluffy_hamster/docs/source/library/tc.rst
+  dir     fluffy_hamster/lib
+  dir     fluffy_hamster/lib/fluffy_hamster
+  sub 3   fluffy_hamster/lib/fluffy_hamster/__init__.py
+  sub     fluffy_hamster/lib/fluffy_hamster/release.py
+  dir     fluffy_hamster/lib/fluffy_hamster/test
+  sub 2   fluffy_hamster/lib/fluffy_hamster/test/__init__.py
+  sub     fluffy_hamster/MANIFEST.in
+  sub 1   fluffy_hamster/README.rst
+  sub 10  fluffy_hamster/setup.py
+  dir     fluffy_hamster/src
+  sub 19  fluffy_hamster/src/__init__.c
+  sub 3   fluffy_hamster/src/__init__.h
+  sub 4   fluffy_hamster/src/_macros.h
+  sub     fluffy_hamster/src/util.c
+  sub 2   fluffy_hamster/src/util.h
+  sub 1   fluffy_hamster/test-working
+  sub 2   fluffy_hamster/LICENSE
+
+
+Show generated code
+^^^^^^^^^^^^^^^^^^^
+
+Note that you do not need to have any existing project in order to use the
+``show`` command, as is simply parses signatures and generates Python C code
+just-in-time.
 
 ::
   
-  $ ./pyca mk meth 'mymod.SomeClass.echo(s msg, i times=3, s# prefix = "")'
+  $ pyca show meth 'mymod.SomeClass.echo(s msg, i times=3, s# prefix = "")'
   > docs/source/mymod.SomeClass.echo.rst:
       .. method:: echo(msg, times=3, prefix="")
 
@@ -56,3 +181,4 @@ The ``mk`` command generates code for functions (``mk func``), methods (``mk met
       PyErr_SetString(PyExc_NotImplementedError, "mymod.SomeClass.echo");
       return NULL;
     }
+
