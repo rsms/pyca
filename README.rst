@@ -134,8 +134,36 @@ Creating a new project
   sub 4   fluffy_hamster/src/_macros.h
   cpy     fluffy_hamster/src/util.c
   sub 2   fluffy_hamster/src/util.h
-  cpy     fluffy_hamster/test-working
+  sub 1   fluffy_hamster/test-working
   sub 2   fluffy_hamster/LICENSE
+
+  $ cd fluffy_hamster/
+  $ ./test-working
+  ./test-working: Building and testing with Python 2.4
+
+  ----------------------------------------------------------------------
+  Ran 0 tests in 0.000s
+
+  OK
+  ./test-working: Building and testing with Python 2.5
+
+  ----------------------------------------------------------------------
+  Ran 0 tests in 0.000s
+
+  OK
+  ./test-working: Building and testing with Python 2.6
+
+  ----------------------------------------------------------------------
+  Ran 0 tests in 0.000s
+
+  OK
+  ./test-working: Building and testing with Python 3.0
+
+  ----------------------------------------------------------------------
+  Ran 0 tests in 0.000s
+
+  OK
+
 
 
 Show generated code

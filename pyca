@@ -566,7 +566,7 @@ def main_init(args):
   try:
     skeleton.copy_tree(srcpath, dstpath, subs=replace, event_cb=event_cb, dry_run=opts.dry_run,
                        ignore_re=r'.+/(\.DS_Store$|\._.*|.*\.psd$)',
-                       sub_re=r'.+\.(?!png$)',
+                       sub_ignore_re=r'.+\.png$',
                        path_subs=path_subs)
   except OSError, e:
     if e.errno != 17:

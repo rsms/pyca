@@ -29,7 +29,7 @@ else:
 def copy_tree(srcdir,
               dstdir,
               subs      = {},
-              sub_re    = None,
+              sub_ignore_re = None,
               symlinks  = False,
               maxdepth  = 10,
               event_cb  = None,
@@ -41,10 +41,10 @@ def copy_tree(srcdir,
   if maxdepth < 1:
     raise Exception('max directory depth reached')
   
-  if isinstance(sub_re, basestring):
-    sub_re = re.compile(sub_re)
-  elif sub_re is None:
-    sub_re = re.compile(r'.+')
+  if isinstance(sub_ignore_re, basestring):
+    sub_ignore_re = re.compile(sub_ignore_re)
+  elif sub_ignore_re is None:
+    sub_ignore_re = re.compile(r'.+')
   
   if isinstance(ignore_re, basestring):
     ignore_re = re.compile(ignore_re)
@@ -92,7 +92,7 @@ def copy_tree(srcdir,
         paths_copied[srcpath] = dstpath
         event_cb('cpy', srcpath, dstpath)
     elif os.path.isfile(srcpath):
-      if sub_re.match(dstpath):
+      if not sub_ignore_re.match(dstpath):
         copy_template_file(srcpath, dstpath, subs, dry_run, event_cb)
       else:
         if not dry_run:
@@ -100,7 +100,7 @@ def copy_tree(srcdir,
         event_cb('cpy', srcpath, dstpath)
       paths_copied[srcpath] = dstpath
     elif os.path.isdir(srcpath):
-      paths = copy_tree(srcpath, dstpath, subs, sub_re, symlinks, maxdepth-1, 
+      paths = copy_tree(srcpath, dstpath, subs, sub_ignore_re, symlinks, maxdepth-1, 
                         event_cb, dry_run, ignore_re, path_subs, dstroot)
       paths_copied.update(paths)
     #else:
