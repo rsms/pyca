@@ -68,6 +68,9 @@ show
   Examples:
 
     Show a function:
+      pyca show 'mymod.myfunc(myarg1, myarg2)'
+
+    Show a function (with type hinting):
       pyca show 'mymod.myfunc(i size, s message = "hello")'
 
     Show a method and a function:

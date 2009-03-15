@@ -234,6 +234,7 @@ def parse_func(spec, method=None):
   else:
     path = spec.split('.')
     args = ''
+  path = [s.strip() for s in path if s.strip()]
   
   if (method and len(path) < 3) or (not method and len(path) < 2):
     prefix = 'func'
@@ -243,10 +244,10 @@ def parse_func(spec, method=None):
   
   if method:
     m['modules'] = path[:-2]
-    m['cls'] = path[-2]
+    m['cls'] = path[-2].strip()
   else:
     m['modules'] = path[:-1]
-  m['name'] = path[-1]
+  m['name'] = path[-1].strip()
   
   av = []
   for part in [s for s in args.split(',') if s]:
@@ -259,9 +260,9 @@ def parse_func(spec, method=None):
       name = part
     namev = [s for s in name.split(' ') if s]
     if len(namev) > 1:
-      arg['type'] = namev[0]
+      arg['type'] = namev[0].strip()
       name = namev[1]
-    arg['name'] = name
+    arg['name'] = name.strip()
     av.append(arg)
   
   m['args'] = av
@@ -453,6 +454,9 @@ def main_show(args):
   Examples:
   
     Show a function:
+      %prog show 'mymod.myfunc(myarg1, myarg2)'
+
+    Show a function (with type hinting):
       %prog show 'mymod.myfunc(i size, s message = "hello")'
   
     Show a method and a function:
