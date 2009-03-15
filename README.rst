@@ -104,14 +104,14 @@ Creating a new project
     PROJECT_URL            => ''
     PROJECT_YEAR           => '2009'
   dir     fluffy_hamster
-  sub     fluffy_hamster/.gitignore
-  sub     fluffy_hamster/CHANGELOG.rst
+  cpy     fluffy_hamster/.gitignore
+  cpy     fluffy_hamster/CHANGELOG.rst
   dir     fluffy_hamster/docs
   dir     fluffy_hamster/docs/source
   dir     fluffy_hamster/docs/source/_static
-  sub     fluffy_hamster/docs/source/_static/info.png
-  sub     fluffy_hamster/docs/source/_static/jump.png
-  sub     fluffy_hamster/docs/source/_static/screen.css
+  cpy     fluffy_hamster/docs/source/_static/info.png
+  cpy     fluffy_hamster/docs/source/_static/jump.png
+  cpy     fluffy_hamster/docs/source/_static/screen.css
   dir     fluffy_hamster/docs/source/_templates
   sub 2   fluffy_hamster/docs/source/_templates/layout.html
   sub 4   fluffy_hamster/docs/source/conf.py
@@ -122,19 +122,19 @@ Creating a new project
   dir     fluffy_hamster/lib
   dir     fluffy_hamster/lib/fluffy_hamster
   sub 3   fluffy_hamster/lib/fluffy_hamster/__init__.py
-  sub     fluffy_hamster/lib/fluffy_hamster/release.py
+  cpy     fluffy_hamster/lib/fluffy_hamster/release.py
   dir     fluffy_hamster/lib/fluffy_hamster/test
   sub 2   fluffy_hamster/lib/fluffy_hamster/test/__init__.py
-  sub     fluffy_hamster/MANIFEST.in
+  cpy     fluffy_hamster/MANIFEST.in
   sub 1   fluffy_hamster/README.rst
   sub 10  fluffy_hamster/setup.py
   dir     fluffy_hamster/src
   sub 19  fluffy_hamster/src/__init__.c
   sub 3   fluffy_hamster/src/__init__.h
   sub 4   fluffy_hamster/src/_macros.h
-  sub     fluffy_hamster/src/util.c
+  cpy     fluffy_hamster/src/util.c
   sub 2   fluffy_hamster/src/util.h
-  sub 1   fluffy_hamster/test-working
+  cpy     fluffy_hamster/test-working
   sub 2   fluffy_hamster/LICENSE
 
 

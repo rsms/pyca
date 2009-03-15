@@ -142,7 +142,10 @@ def copy_template_file(src, dst, subs, dry_run, event_cb):
   if not dry_run:
     shutil.copymode(src, dst)
   if event_cb:
-    event_cb('sub', src, dst, indices)
+    if indices:
+      event_cb('sub', src, dst, indices)
+    else:
+      event_cb('cpy', src, dst)
 
 
 def multisub(src, subs, keytpl=None):
