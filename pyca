@@ -537,7 +537,8 @@ def main_init(args):
   
   # path subs
   path_subs = {
-    'lib/module': 'lib/'+module
+    'lib/module': 'lib/'+module,
+    'docs/source/library/module.rst': 'docs/source/library/%s.rst' % module
   }
   
   # print configuration

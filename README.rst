@@ -118,7 +118,7 @@ Creating a new project
   sub 1   fluffy_hamster/docs/source/index.rst
   dir     fluffy_hamster/docs/source/library
   sub 1   fluffy_hamster/docs/source/library/index.rst
-  sub 3   fluffy_hamster/docs/source/library/tc.rst
+  sub 3   fluffy_hamster/docs/source/library/fluffy_hamster.rst
   dir     fluffy_hamster/lib
   dir     fluffy_hamster/lib/fluffy_hamster
   sub 3   fluffy_hamster/lib/fluffy_hamster/__init__.py
