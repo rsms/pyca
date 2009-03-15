@@ -138,7 +138,9 @@ def guess_author():
   if not email:
     email = os.environ.get('EMAIL')
   if not name:
-    name = os.environ.get('USER', email or os.environ.get('EMAIL'))
+    name = os.environ('USER')
+  if not name and not email:
+    return None
   if email:
     author = '%s <%s>' % (name, email)
   else:
@@ -514,9 +516,12 @@ def main_init(args):
   )
   
   # author
-  (replace['PROJECT_AUTHOR'], 
-   replace['PROJECT_AUTHOR_NAME'], 
-   replace['PROJECT_AUTHOR_EMAIL']) = parse_author(opts.author)
+  try:
+    (replace['PROJECT_AUTHOR'], 
+     replace['PROJECT_AUTHOR_NAME'], 
+     replace['PROJECT_AUTHOR_EMAIL']) = parse_author(opts.author)
+  except TypeError:
+    error('unable to guess author')
   
   # paths
   skeletonpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'skeleton')
