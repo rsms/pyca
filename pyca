@@ -11,14 +11,15 @@ import sys, os
 import skeleton, datetime
 from optparse import OptionParser
 from subprocess import Popen, PIPE
-opts = None
-optp = None
-outf = sys.stdout
-
-YEAR_NOW = '%04d' % datetime.datetime.now().year
 
 __version__ = '0.1.1'
 
+opts = None
+optp = None
+outf = sys.stdout
+commands = {}
+
+YEAR_NOW = '%04d' % datetime.datetime.now().year
 PTYPE_TO_STORAGE = {
   # p: ((type, default)[, length_type])
   's' : [['const char *','NULL']],
@@ -54,6 +55,9 @@ PTYPE_TO_STORAGE = {
 }
 
 
+#-----------------------------------------------------------------------------
+# Utilities
+
 
 def sh(args, cwd=None, silent=True):
   '''Returns stdout as string.
@@ -81,10 +85,119 @@ def error(msg, cmdname=None, display_help=False):
   if display_help:
     optp.error(msg)
   else:
-    see = "pyca --help"
+    see = optp.get_prog_name() + " --help"
     if cmdname:
-      see = "pyca help " + cmdname
+      see = optp.get_prog_name() + " help " + cmdname
     optp.exit(2, "%s: error: %s See %r.\n" % (optp.get_prog_name(), msg, see))
+
+
+def parse_author(author):
+  if not author:
+    return guess_author()
+  
+  author = author.rstrip('> ')
+  name = email = author
+  p = author.find('<')
+  
+  if p == 0:
+    # <fred@boll.com>
+    author = author.strip('< ')
+    name = email = author
+    p = email.find('@')
+    if p != -1:
+      name = email[:p] # fred@boll.com -> fred
+      author = '<%s>' % email
+  elif p > 0:
+    # Fred Boll <fred@boll.com>
+    name = author[:p].strip()
+    email = author[p:].strip('< ')
+    author = '%s <%s>' % (name, email)
+  else:
+    p = email.find('@')
+    if p != -1:
+      # fred@boll.com
+      name = email[:p] # fred@boll.com -> fred
+      author = '<%s>' % email
+    else:
+      # Fred Boll
+      email = ''
+  
+  return (author, name, email)
+
+
+def guess_author():
+  name_email = guess_name_email()
+  if isinstance(name_email, str):
+    if not name_email:
+      raise ValueError('empty string returned')
+    return parse_author(name_email)
+  if not name_email:
+    name = email = None
+  else:
+    name, email = name_email
+  if not email:
+    email = os.environ.get('EMAIL')
+  if not name:
+    name = os.environ.get('USER', email or os.environ.get('EMAIL'))
+  if email:
+    author = '%s <%s>' % (name, email)
+  else:
+    author = name
+  return (author, name, email)
+
+
+def guess_name_email():
+  env = os.environ
+  
+  # PYCA_AUTHOR in env
+  if 'PYCA_AUTHOR' in env:
+    return env['PYCA_AUTHOR']
+  
+  # AUTHOR in env
+  if 'AUTHOR' in env:
+    return env['AUTHOR']
+  
+  # git
+  try:
+    return (sh('git config --global --get user.name'), 
+            sh('git config --global --get user.email'))
+  except IOError:
+    pass
+  
+  # mercurial
+  try:
+    for line in sh('hg showconfig').split('\n'):
+      p = line.find('.username=')
+      if p != -1:
+        return line[p+len('.username='):].strip()
+  except IOError:
+    pass
+  
+  # textmate
+  if 'TM_ORGANIZATION_NAME' in env:
+    return env['TM_ORGANIZATION_NAME']
+
+
+def parse_cmd_opts(cmdmain, args):
+  global opts
+  opts2, args = cmdmain.optp.parse_args(args)
+  opts.__dict__.update(opts2.__dict__)
+  return opts, args
+
+
+def parse_cmd_doc(cmdmain):
+  return cmdmain.__doc__.strip().replace('\n  ','\n')
+
+
+def init_cmd(cmdmain):
+  global commands
+  commands[cmdmain.__name__[5:]] = cmdmain
+  cmdmain.optp = OptionParser(usage=parse_cmd_doc(cmdmain))
+  return cmdmain.optp
+
+
+#-----------------------------------------------------------------------------
+# Code generation
 
 
 def parse_func(spec, method=None):
@@ -107,7 +220,10 @@ def parse_func(spec, method=None):
     args = ''
   
   if (method and len(path) < 3) or (not method and len(path) < 2):
-    error('incomplete path -- expected something like: %s' % ('mymodule.'+spec))
+    prefix = 'func'
+    if method:
+      prefix = method
+    error('[%s] incomplete path -- expected something like: %s' % (prefix, 'mymodule.'+spec), 'show')
   
   if method:
     m['modules'] = path[:-2]
@@ -282,12 +398,13 @@ PyObject *%(path_)s(%(selfdef)sPyObject *args, PyObject *kwargs) {
 }
 ''' % spec)
 
+#-----------------------------------------------------------------------------
+# commands and main
 
-
-def main_mk_func(args, method=False):
+def main_show_func(specs, method=False):
   files = []
   
-  for spec in args:
+  for spec in specs:
     spec = parse_func(spec, method=method)
     files.append(format_func_doc(spec, method=method))
     files.append(format_func_h(spec, method=method))
@@ -298,132 +415,75 @@ def main_mk_func(args, method=False):
     outf.write('  ')
     outf.write(content.strip('\n').replace('\n', '\n  '))
     outf.write('\n\n')
+  
+  return files
 
 
-def main_mk_meth(args):
-  return main_mk_func(args, 'instance')
+def main_show_meth(specs):
+  return main_show_func(specs, 'instance')
 
 
-def main_mk_smeth(args):
-  return main_mk_func(args, 'static')
+def main_show_smeth(specs):
+  return main_show_func(specs, 'static')
 
 
-def main_mk(args):
-  '''Generate code for func, meth or smeth
+def main_show(args):
   '''
+  Usage: %prog show <signature>
+         %prog show <type> <signature> [<type> <signature> ...]
+  
+  Generate and display Python C code.
+  
+  Examples:
+  
+    Show a function:
+      %prog show 'mymod.myfunc(i size, s message = "hello")'
+  
+    Show a method and a function:
+      %prog show meth 'mymod.MyClass.mymeth(i size, s message = "hello")'\\
+                func 'mymod.myfunc(i size, s message = "hello")'
+    
+    Show a static method:
+      %prog show smeth 'mymod.MyClass.mymeth(i size, s message = "hello")'
+  
+  Type hinting is (optionally) performed by adding a PyArg_Parse symbol in front
+  of arguments.
+  '''
+  opts, args = parse_cmd_opts(main_show, args)
+  types = ['func', 'meth', 'smeth']
+  
   if len(args) == 0:
-    error('the mk command requires type to be specified '\
-      '(one of: func, meth, smeth)')
-  try:
-    cmd = eval('main_mk_'+args[0])
-  except NameError:
-    error('%r is not a type. Try one of: func, meth, smeth' % args[0])
+    error('at least one signature is required', 'show')
+  
+  if len(args) > 2 and len(args) % 2 != 0:
+    error('incomplete arguments -- missing type or signature', 'show')
+  
   if len(args) < 2:
-    error('the mk command with type %r requires one or more specifiers'
-      % args[0])
-  return cmd(args[1:])
-
-
-def parse_author(author):
-  if not author:
-    return guess_author()
+    args[0:0] = ['func']
   
-  author = author.rstrip('> ')
-  name = email = author
-  p = author.find('<')
-  
-  if p == 0:
-    # <fred@boll.com>
-    author = author.strip('< ')
-    name = email = author
-    p = email.find('@')
-    if p != -1:
-      name = email[:p] # fred@boll.com -> fred
-      author = '<%s>' % email
-  elif p > 0:
-    # Fred Boll <fred@boll.com>
-    name = author[:p].strip()
-    email = author[p:].strip('< ')
-    author = '%s <%s>' % (name, email)
-  else:
-    p = email.find('@')
-    if p != -1:
-      # fred@boll.com
-      name = email[:p] # fred@boll.com -> fred
-      author = '<%s>' % email
-    else:
-      # Fred Boll
-      email = ''
-  
-  return (author, name, email)
+  for i in range(len(args)/2):
+    typ = args[i*2].lower()
+    sig = args[(i*2)+1]
+    if typ not in types:
+      error('invalid type %r' % typ)
+    eval('main_show_'+typ)([sig])
 
-
-def guess_author():
-  name_email = guess_name_email()
-  if isinstance(name_email, str):
-    if not name_email:
-      raise ValueError('empty string returned')
-    return parse_author(name_email)
-  if not name_email:
-    name = email = None
-  else:
-    name, email = name_email
-  if not email:
-    email = os.environ.get('EMAIL')
-  if not name:
-    name = os.environ.get('USER', email or os.environ.get('EMAIL'))
-  if email:
-    author = '%s <%s>' % (name, email)
-  else:
-    author = name
-  return (author, name, email)
-
-
-def guess_name_email():
-  env = os.environ
-  
-  # PYCA_AUTHOR in env
-  if 'PYCA_AUTHOR' in env:
-    return env['PYCA_AUTHOR']
-  
-  # AUTHOR in env
-  if 'AUTHOR' in env:
-    return env['AUTHOR']
-  
-  # git
-  try:
-    return (sh('git config --global --get user.name'), 
-            sh('git config --global --get user.email'))
-  except IOError:
-    pass
-  
-  # mercurial
-  try:
-    for line in sh('hg showconfig').split('\n'):
-      p = line.find('.username=')
-      if p != -1:
-        return line[p+len('.username='):].strip()
-  except IOError:
-    pass
-  
-  # textmate
-  if 'TM_ORGANIZATION_NAME' in env:
-    return env['TM_ORGANIZATION_NAME']
-
-
-def parse_cmd_opts(cmdmain, args):
-  global opts
-  opts2, args = cmdmain.optp.parse_args(args)
-  opts.__dict__.update(opts2.__dict__)
-  return opts, args
-
-
-def parse_cmd_doc(cmdmain):
-  return cmdmain.__doc__.strip().replace('\n  ','\n')
+p = init_cmd(main_show)
+p.add_option("-f", "--func", dest="type", action='store_const', const='func',
+  help="The signature is a function (default).")
+p.add_option("-m", "--meth", dest="type", action='store_const', const='meth',
+  help="The signature is a method.")
+p.add_option("-s", "--smeth", dest="type", action='store_const', const='smeth',
+  help="The signature is a static method.")
 
 
 def main_init(args):
-  '''Create and initialize a new project.
+  '''
+  Usage: %prog init [options] <name> [<path>]
+  
+  Create and initialize a new project.
+  
+  If <path> is not specified it defaults to './' + <name>
   '''
   opts, args = parse_cmd_opts(main_init, args)
   
@@ -507,51 +567,54 @@ def main_init(args):
                               dry_run=opts.dry_run)
 
 # init options:
-main_init.optp = OptionParser(usage='usage: %prog init [options] <name> [<path>]\n'+
-  parse_cmd_doc(main_init)+
-  '\n\nIf <path> is not specified it defaults to ./<name>')
-main_init.optp.add_option("", "--dry-run", dest="dry_run", default=False, action="store_true",
+p = init_cmd(main_init)
+p.add_option("", "--dry-run", dest="dry_run", default=False, action="store_true",
   help="Simulate but don't actually do anything.")
-main_init.optp.add_option("-t", "--title", dest="title", metavar="<title>", default=None,
+p.add_option("-t", "--title", dest="title", metavar="<title>", default=None,
   help="Human-readable title of project. Defaults to <name>.")
-main_init.optp.add_option("-a", "--author", dest="author", metavar="<author>", default=None,
+p.add_option("-a", "--author", dest="author", metavar="<author>", default=None,
   help="Author of the project. If not set, author will be guessed.")
-main_init.optp.add_option("-u", "--url", dest="url", metavar="<url>", default='',
+p.add_option("-u", "--url", dest="url", metavar="<url>", default='',
   help="URL pointing to more information.")
-main_init.optp.add_option("-y", "--year", dest="year", metavar="<year>", default=YEAR_NOW,
+p.add_option("-y", "--year", dest="year", metavar="<year>", default=YEAR_NOW,
   help="Copyright year. Defaults to "+YEAR_NOW)
-main_init.optp.add_option("-l", "--license", dest="license", metavar="<license>", default='mit',
+p.add_option("-l", "--license", dest="license", metavar="<license>", default='mit',
   help="Software license. Defaults to 'mit' (for a list of available licenses, "\
        "see contents of directory <pycadir>/skeleton/licenses)")
 
 def main_help(args):
-  '''Display help about a certain command
   '''
+  %prog help [COMMAND]
+  
+  Display help about a certain command or %prog itself.
+  '''
+  global commands
   if args:
     try:
-      cmdmain = eval('main_'+args[0])
-    except NameError:
+      cmdmain = commands[args[0]]
+    except KeyError:
       error('no such command %r' % args[0])
     cmdmain.optp.print_help()
   else:
     optp.print_help()
   sys.exit(1)
 
+init_cmd(main_help)
 
 def main():
-  global opts, optp
+  global opts, optp, commands
   
-  usage = 'usage: %prog [options] COMMAND [ARGS]\n\nCommands:\n'
-  for sym in globals():
-    if sym.startswith('main_') and '_' not in sym[5:]:
-      doc = eval(sym+'.__doc__')
-      if doc:
-        doc = str(doc).strip()
-        if '\n' in doc:
-          doc = doc[:doc.index('\n')]
-      else:
-        doc = ''
-      usage += '  %-10s  %s\n' % (sym[5:], str(doc).strip())
+  usage = '%prog [options] COMMAND [ARGS]\n\nCommands:\n'
+  for cmdname in sorted(commands):
+    cmdmain = commands[cmdname]
+    doc = cmdmain.__doc__
+    if doc:
+      doc = str(doc).strip()
+      if '\n' in doc:
+        doc = doc[:doc.index('\n')]
+    else:
+      doc = ''
+    usage += '  %-10s  %s\n' % (cmdname, str(doc).strip())
   usage = usage.rstrip()
   
   optp = OptionParser(usage=usage, version=__version__)
@@ -563,12 +626,13 @@ def main():
   
   if len(args) == 0:
     optp.print_help()
-    print >>sys.stderr, "\nSee 'pyca help COMMAND' for more information on a specific command"
+    print >>sys.stderr, "\nSee '%s help COMMAND' for more information on a specific command" %\
+      optp.get_prog_name()
     sys.exit(1)
   
   try:
-    cmd = eval('main_'+args[0])
-  except NameError:
+    cmd = commands[args[0]]
+  except KeyError:
     error('%r is not a command' % args[0])
   
   cmd(args[1:])
