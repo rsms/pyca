@@ -1,0 +1,16 @@
+Source: python-${PROJECT_MODULE}
+Section: python
+Priority: optional
+Maintainer: ${PROJECT_AUTHOR}
+Build-Depends: debhelper (>= 5.0), libfcgi-dev (>= 2.4), python-all-dev (>= 2.4), python-central (>= 0.5)
+XS-Python-Version: all
+Standards-Version: 3.8.0
+
+Package: python-${PROJECT_MODULE}
+Architecture: any
+Depends: libc6 (>= 2.3), python (>= 2.4)
+Recommends: 
+Suggests: 
+XB-Python-Version: ${python:Versions}
+Homepage: ${PROJECT_URL}
+Description: ${PROJECT_TITLE}

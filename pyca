@@ -7,7 +7,7 @@ Generates Python C API interface code to aid in C extension development.
 Copyright (c) 2009 Rasmus Andersson
 Licensed under the MIT license.
 '''
-import sys, os
+import sys, os, time
 import skeleton, datetime
 from optparse import OptionParser
 from subprocess import Popen, PIPE
@@ -516,7 +516,8 @@ def main_init(args):
     PROJECT_MODULE_UPPER = module.upper(),
     PROJECT_TITLE = opts.title,
     PROJECT_URL = opts.url,
-    PROJECT_YEAR = opts.year
+    PROJECT_YEAR = opts.year,
+    DATE_RFC822 = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime())
   )
   
   # author
@@ -571,6 +572,10 @@ def main_init(args):
   else:
     event_cb = None
   
+  # generate license
+  license_buf, license_indices = skeleton.sub_template_file(license_srcpath, subs=replace)
+  replace['PROJECT_LICENSE'] = license_buf
+  
   # create project tree
   try:
     skeleton.copy_tree(srcpath, dstpath, subs=replace, event_cb=event_cb, dry_run=opts.dry_run,
@@ -582,9 +587,13 @@ def main_init(args):
       raise
     error(e, 'init')
   
-  # copy license
-  skeleton.copy_template_file(license_srcpath, license_dstpath, subs=replace, event_cb=event_cb,
-                              dry_run=opts.dry_run)
+  # write license
+  if not opts.dry_run:
+    f = open(license_dstpath, 'w')
+    try:
+      f.write(license_buf)
+    finally:
+      f.close()
 
 # init options:
 p = init_cmd(main_init)

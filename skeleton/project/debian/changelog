@@ -1,0 +1,5 @@
+python-${PROJECT_MODULE} (0.1.0-1) unstable; urgency=low
+
+  * First release
+
+ -- ${PROJECT_AUTHOR}  ${DATE_RFC822}

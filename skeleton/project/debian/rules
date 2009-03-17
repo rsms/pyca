@@ -1,0 +1,68 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE = 1
+
+# This is the debhelper compatibility version to use.
+export DH_COMPAT = 5
+
+PYVERS = $(shell pyversions -r)
+
+build: build-stamp
+
+build-stamp: $(PYVERS:%=build-ext-%-stamp)
+	touch $@
+
+build-ext-%-stamp:
+	dh_testdir
+	$* setup.py build -g
+	touch $@
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -rf build
+	rm -rf dist
+	rm -rf debian/python-${PROJECT_MODULE}*
+	rm -rf lib/*.egg-info
+	find . -name '*.pyc' | xargs rm -f
+	find . -name '*.pyo' | xargs rm -f
+	dh_clean
+
+install: build install-prereq $(PYVERS:%=install-ext-%)
+
+install-prereq:
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+
+install-ext-%:
+	$* setup.py install --root=debian/python-${PROJECT_MODULE}
+	rm -rf debian/python-smisk/usr/${PROJECT_MODULE}-doc
+	rm -rf debian/python-smisk/usr/bin
+	find debian/python-${PROJECT_MODULE} -name '*.pyc' | xargs rm -f
+
+# Build architecture-independent files here.
+binary-indep:
+
+# Build architecture-dependent files here.
+binary-arch: build install
+	dh_testdir -a
+	dh_testroot -a
+	dh_installdocs -A -a debian/copyright
+	dh_installexamples -A -a examples/*
+	dh_pycentral -a
+	dh_installchangelogs -a
+	dh_strip -a
+	dh_compress -a
+	dh_fixperms -a
+	dh_installdeb -a
+	dh_shlibdeps -a
+	dh_gencontrol -a
+	dh_md5sums -a
+	dh_builddeb -a
+
+binary: binary-indep binary-arch
+
+.PHONY: build clean binary-indep binary-arch binary install configure

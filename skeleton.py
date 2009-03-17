@@ -121,25 +121,25 @@ def copy_file(src, dst):
   shutil.copymode(src, dst)
 
 
+def sub_template_file(src, subs):
+  indices = []
+  f = open(src, 'rb')
+  try:
+    buf, indices = multisub(f.read(), subs, REPLACE_PLACEHOLDER_TPL)
+  finally:
+    f.close()
+  return buf, indices
+
+
 def copy_template_file(src, dst, subs, dry_run, event_cb):
   #log.debug('copying and rendering template %r to %r with env %r', src, dst, env)
-  fsrc = None
-  fdst = None
-  indices = []
-  try:
-    fsrc = open(src, 'rb')
-    if not dry_run:
-      fdst = open(dst, 'wb')
-    buf = fsrc.read()
-    buf, indices = multisub(buf, subs, REPLACE_PLACEHOLDER_TPL)
-    if not dry_run:
-      fdst.write(buf)
-  finally:
-    if fdst:
-      fdst.close()
-    if fsrc:
-      fsrc.close()
+  buf, indices = sub_template_file(src, subs)
   if not dry_run:
+    f = open(dst, 'wb')
+    try:
+      fdst.write(buf)
+    finally:
+      f.close()
     shutil.copymode(src, dst)
   if event_cb:
     if indices:
