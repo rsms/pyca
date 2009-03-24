@@ -137,7 +137,7 @@ def copy_template_file(src, dst, subs, dry_run, event_cb):
   if not dry_run:
     f = open(dst, 'wb')
     try:
-      fdst.write(buf)
+      f.write(buf)
     finally:
       f.close()
     shutil.copymode(src, dst)

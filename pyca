@@ -59,6 +59,10 @@ PTYPE_TO_STORAGE = {
 # Utilities
 
 
+def abspath(path):
+  return os.path.realpath(os.path.abspath(path))
+
+
 def sh(args, cwd=None, silent=True):
   '''Returns stdout as string.
   Raises IOError on failure (if silent is false, also on non-zero return).
@@ -529,7 +533,7 @@ def main_init(args):
     error('unable to guess author')
   
   # paths
-  skeletonpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'skeleton')
+  skeletonpath = os.path.join(os.path.dirname(abspath(__file__)), 'skeleton')
   license_srcpath = os.path.join(skeletonpath, 'licenses', opts.license.lower())
   srcpath = os.path.join(skeletonpath, 'project')
   dstpath = None
@@ -556,7 +560,7 @@ def main_init(args):
     dry_run_info = ''
     if opts.dry_run:
       dry_run_info = ' (dry run)'
-    print 'Creating new project %r in %r%s' % (dstpath, os.path.abspath(dstpath), dry_run_info)
+    print 'Creating new project %r in %r%s' % (dstpath, abspath(dstpath), dry_run_info)
     for k in sorted(replace.keys()):
       v = replace[k]
       print '  %-22s => %r' % (k, v)
