@@ -40,7 +40,7 @@ static PyObject *${PROJECT_MODULE}_${CLASS_NAME}_new(PyTypeObject *type, PyObjec
 /* Methods */
 static PyMethodDef ${PROJECT_MODULE}_${CLASS_NAME}_methods[] = {
   /* This is how a method registry look like:
-  {"method_name", (PyCFunction)${PROJECT_MODULE}_${CLASS_NAME}_method_name, METH_VARARGS | METH_KEYWORDS,
+  {"method_name", (PyCFunctionWithKeywords)${PROJECT_MODULE}_${CLASS_NAME}_method_name, METH_VARARGS | METH_KEYWORDS,
     "Do something awesome."}, */
   {NULL, NULL, 0, NULL} ///< sentinel
 };

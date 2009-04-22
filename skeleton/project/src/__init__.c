@@ -2,12 +2,12 @@
 
 PyObject *${PROJECT_MODULE}_module;
 
-
 /*
  * Module functions
  */
 static PyMethodDef ${PROJECT_MODULE}_functions[] = {
-  {NULL, NULL}
+  /*{"myfunc", (PyCFunction)${PROJECT_MODULE}_myfunc, METH_VARARGS|METH_KEYWORDS, NULL},*/
+  {NULL, NULL, 0, NULL}
 };
 
 
