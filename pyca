@@ -315,6 +315,8 @@ def format_func_h(spec, method=False):
   
   if method and method != 'static':
     selfdef = 'PyObject *self, '
+  else:
+    selfdef = 'PyObject *_null, '
   
   for arg in spec['args']:
     t = arg.get('type', 'O')
